@@ -24,6 +24,7 @@
 #include <linux/page-flags.h>
 #include <linux/local_lock.h>
 #include <linux/zswap.h>
+#include <linux/kcompress.h>
 #include <linux/android_kabi.h>
 #include <asm/page.h>
 
@@ -1490,7 +1491,7 @@ typedef struct pglist_data {
 	struct memory_failure_stats mf_stats;
 #endif
 
-	ANDROID_KABI_RESERVE(1);
+	ANDROID_KABI_USE(1, struct kcompress_data *kcompress);
 	ANDROID_BACKPORT_RESERVE(1);
 	ANDROID_OEM_DATA(1);
 } pg_data_t;
