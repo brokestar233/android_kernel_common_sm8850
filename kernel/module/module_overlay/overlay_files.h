@@ -24,7 +24,6 @@ struct confirm_item {
 };
 
 static const struct confirm_item confirm_list[] = {
-    { .name = "qca_cld3_peach_v2", .cmdline = "modify_wifi.enable" },
     { .name = NULL, .cmdline = NULL }  /* 结束标记 */
 };
 
