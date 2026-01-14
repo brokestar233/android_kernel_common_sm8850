@@ -21,7 +21,6 @@ u64 gcma_stat_get(enum gcma_stat_type type);
 #else
 static inline u64 gcma_stat_get(enum gcma_stat_type type) { return 0; }
 #endif
-
 /*
  * NOTE: allocated pages are still marked reserved and when freeing them
  * the caller should ensure they are isolated and not referenced by anyone

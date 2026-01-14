@@ -3379,8 +3379,17 @@ vm_fault_t filemap_fault(struct vm_fault *vmf)
 	bool mapping_locked = false;
 
 	max_idx = DIV_ROUND_UP(i_size_read(inode), PAGE_SIZE);
+#if IS_ENABLED(CONFIG_MTK_VM_DEBUG)
+	if (unlikely(index >= max_idx)) {
+		if (current->pid == 0x1)
+			pr_info("VM_FAULT_SIGBUS: unlikely(index >= max_idx): %s:%d\n",
+			__func__, __LINE__);
+		return VM_FAULT_SIGBUS;
+	}
+#else
 	if (unlikely(index >= max_idx))
 		return VM_FAULT_SIGBUS;
+#endif
 
 	trace_mm_filemap_fault(mapping, index);
 
@@ -3486,6 +3495,11 @@ retry_find:
 	if (unlikely(index >= max_idx)) {
 		folio_unlock(folio);
 		folio_put(folio);
+#if IS_ENABLED(CONFIG_MTK_VM_DEBUG)
+		if (current->pid == 0x1)
+			pr_info("VM_FAULT_SIGBUS: unlikely(index >= max_idx): %s:%d\n",
+			__func__, __LINE__);
+#endif
 		return VM_FAULT_SIGBUS;
 	}
 
@@ -3511,6 +3525,11 @@ page_not_uptodate:
 		goto retry_find;
 	filemap_invalidate_unlock_shared(mapping);
 
+#if IS_ENABLED(CONFIG_MTK_VM_DEBUG)
+		if (current->pid == 0x1)
+			pr_info("VM_FAULT_SIGBUS: page_not_uptodate: %s:%d\n",
+			__func__, __LINE__);
+#endif
 	return VM_FAULT_SIGBUS;
 
 out_retry:
@@ -3834,6 +3853,11 @@ int generic_file_readonly_mmap(struct file *file, struct vm_area_struct *vma)
 #else
 vm_fault_t filemap_page_mkwrite(struct vm_fault *vmf)
 {
+#if IS_ENABLED(CONFIG_MTK_VM_DEBUG)
+	if (current->pid == 0x1)
+		pr_info("VM_FAULT_SIGBUS: filemap_page_mkwrite before return: %s:%d\n",
+		__func__, __LINE__);
+#endif
 	return VM_FAULT_SIGBUS;
 }
 int generic_file_mmap(struct file *file, struct vm_area_struct *vma)

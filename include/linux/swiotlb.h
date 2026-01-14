@@ -185,6 +185,18 @@ bool is_swiotlb_active(struct device *dev);
 void __init swiotlb_adjust_size(unsigned long size);
 phys_addr_t default_swiotlb_base(void);
 phys_addr_t default_swiotlb_limit(void);
+
+#ifdef CONFIG_SWIOTLB_NONLINEAR
+int swiotlb_late_init_with_tblpaddr(char *tlb,
+			phys_addr_t tlb_paddr, unsigned long nslabs);
+#else
+static inline int swiotlb_late_init_with_tblpaddr(char *tlb,
+			phys_addr_t tlb_paddr, unsigned long nslabs)
+{
+	return -EINVAL;
+}
+#endif
+
 #else
 static inline void swiotlb_init(bool addressing_limited, unsigned int flags)
 {
@@ -233,6 +245,12 @@ static inline phys_addr_t default_swiotlb_base(void)
 static inline phys_addr_t default_swiotlb_limit(void)
 {
 	return 0;
+}
+
+static inline int swiotlb_late_init_with_tblpaddr(char *tlb,
+			phys_addr_t tlb_paddr, unsigned long nslabs)
+{
+	return -EINVAL;
 }
 #endif /* CONFIG_SWIOTLB */
 

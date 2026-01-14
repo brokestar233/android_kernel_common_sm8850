@@ -1839,7 +1839,6 @@ int do_madvise(struct mm_struct *mm, unsigned long start, size_t len_in, int beh
 	struct blk_plug plug;
 	struct madvise_behavior madv_behavior = {.behavior = behavior};
 	bool bypass = false;
-
 	if (!madvise_behavior_valid(behavior))
 		return -EINVAL;
 

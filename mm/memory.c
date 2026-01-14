@@ -2440,11 +2440,27 @@ vm_fault_t vmf_insert_pfn_prot(struct vm_area_struct *vma, unsigned long addr,
 	BUG_ON((vma->vm_flags & VM_PFNMAP) && is_cow_mapping(vma->vm_flags));
 	BUG_ON((vma->vm_flags & VM_MIXEDMAP) && pfn_valid(pfn));
 
+#if IS_ENABLED(CONFIG_MTK_VM_DEBUG)
+	if (addr < vma->vm_start || addr >= vma->vm_end) {
+		if (current->pid == 0x1)
+			pr_info("VM_FAULT_SIGBUS: addr < vma->vm_start || addr >= vma->vm_end: %s:%d\n",
+			__func__, __LINE__);
+		return VM_FAULT_SIGBUS;
+	}
+
+	if (!pfn_modify_allowed(pfn, pgprot)) {
+		if (current->pid == 0x1)
+			pr_info("VM_FAULT_SIGBUS: !pfn_modify_allowed(pfn, pgprot): %s:%d\n",
+			__func__, __LINE__);
+		return VM_FAULT_SIGBUS;
+	}
+#else
 	if (addr < vma->vm_start || addr >= vma->vm_end)
 		return VM_FAULT_SIGBUS;
 
 	if (!pfn_modify_allowed(pfn, pgprot))
 		return VM_FAULT_SIGBUS;
+#endif
 
 	track_pfn_insert(vma, &pgprot, __pfn_to_pfn_t(pfn, PFN_DEV));
 
@@ -2503,6 +2519,31 @@ static vm_fault_t __vm_insert_mixed(struct vm_area_struct *vma,
 	pgprot_t pgprot = vma->vm_page_prot;
 	int err;
 
+#if IS_ENABLED(CONFIG_MTK_VM_DEBUG)
+	if (!vm_mixed_ok(vma, pfn, mkwrite)) {
+		if (current->pid == 0x1)
+			pr_info("VM_FAULT_SIGBUS: !vm_mixed_ok(vma, pfn, mkwrite): %s:%d\n",
+			__func__, __LINE__);
+		return VM_FAULT_SIGBUS;
+	}
+
+	if (addr < vma->vm_start || addr >= vma->vm_end) {
+		if (current->pid == 0x1)
+			pr_info("aVM_FAULT_SIGBUS: ddr < vma->vm_start || addr >= vma->vm_end: %s:%d\n",
+			__func__, __LINE__);
+		return VM_FAULT_SIGBUS;
+	}
+
+	track_pfn_insert(vma, &pgprot, pfn);
+
+	if (!pfn_modify_allowed(pfn_t_to_pfn(pfn), pgprot)) {
+		if (current->pid == 0x1) {
+			pr_info("!VM_FAULT_SIGBUS: pfn_modify_allowed(pfn_t_to_pfn(pfn), pgprot): %s:%d\n",
+				__func__, __LINE__);
+		}
+		return VM_FAULT_SIGBUS;
+	}
+#else
 	if (!vm_mixed_ok(vma, pfn, mkwrite))
 		return VM_FAULT_SIGBUS;
 
@@ -2513,6 +2554,7 @@ static vm_fault_t __vm_insert_mixed(struct vm_area_struct *vma,
 
 	if (!pfn_modify_allowed(pfn_t_to_pfn(pfn), pgprot))
 		return VM_FAULT_SIGBUS;
+#endif
 
 	/*
 	 * If we don't have pte special, then we have to use the pfn_valid()
@@ -2538,8 +2580,16 @@ static vm_fault_t __vm_insert_mixed(struct vm_area_struct *vma,
 
 	if (err == -ENOMEM)
 		return VM_FAULT_OOM;
+#if IS_ENABLED(CONFIG_MTK_VM_DEBUG)
+	if (err < 0 && err != -EBUSY) {
+		if (current->pid == 0x1)
+			pr_info("VM_FAULT_SIGBUS: err < 0 && err != -EBUSY %s:%d\n", __func__, __LINE__);
+		return VM_FAULT_SIGBUS;
+	}
+#else
 	if (err < 0 && err != -EBUSY)
 		return VM_FAULT_SIGBUS;
+#endif
 
 	return VM_FAULT_NOPAGE;
 }
@@ -3182,9 +3232,19 @@ static vm_fault_t do_page_mkwrite(struct vm_fault *vmf, struct folio *folio)
 
 	vmf->flags = FAULT_FLAG_WRITE|FAULT_FLAG_MKWRITE;
 
+#if IS_ENABLED(CONFIG_MTK_VM_DEBUG)
+	if (vmf->vma->vm_file &&
+	    IS_SWAPFILE(vmf->vma->vm_file->f_mapping->host)) {
+		if (current->pid == 0x1)
+			pr_info("VM_FAULT_SIGBUS: vmf->vma->vm_file->f_mapping->host: %s:%d\n",
+		__func__, __LINE__);
+		return VM_FAULT_SIGBUS;
+	}
+#else
 	if (vmf->vma->vm_file &&
 	    IS_SWAPFILE(vmf->vma->vm_file->f_mapping->host))
 		return VM_FAULT_SIGBUS;
+#endif
 
 	ret = vmf->vma->vm_ops->page_mkwrite(vmf);
 	/* Restore original flags so that caller is not surprised */
@@ -4020,8 +4080,17 @@ static vm_fault_t handle_pte_marker(struct vm_fault *vmf)
 	 * PTE markers should never be empty.  If anything weird happened,
 	 * the best thing to do is to kill the process along with its mm.
 	 */
+#if IS_ENABLED(CONFIG_MTK_VM_DEBUG)
+	if (WARN_ON_ONCE(!marker)) {
+		if (current->pid == 0x1)
+			pr_info("VM_FAULT_SIGBUS: WARN_ON_ONCE(!marker): %s:%d\n",
+			__func__, __LINE__);
+		return VM_FAULT_SIGBUS;
+	}
+#else
 	if (WARN_ON_ONCE(!marker))
 		return VM_FAULT_SIGBUS;
+#endif
 
 	/* Higher priority than uffd-wp when data corrupted */
 	if (marker & PTE_MARKER_POISONED)
@@ -4035,6 +4104,11 @@ static vm_fault_t handle_pte_marker(struct vm_fault *vmf)
 		return pte_marker_handle_uffd_wp(vmf);
 
 	/* This is an unknown pte marker */
+#if IS_ENABLED(CONFIG_MTK_VM_DEBUG)
+	if (current->pid == 0x1)
+		pr_info("VM_FAULT_SIGBUS: pte_marker_handle_uffd_wp before return: %s:%d\n",
+		__func__, __LINE__);
+#endif
 	return VM_FAULT_SIGBUS;
 }
 
@@ -4294,6 +4368,10 @@ vm_fault_t do_swap_page(struct vm_fault *vmf)
 			ret = handle_pte_marker(vmf);
 		} else {
 			print_bad_pte(vma, vmf->address, vmf->orig_pte, NULL);
+#if IS_ENABLED(CONFIG_MTK_VM_DEBUG)
+			if (current->pid == 0x1)
+				pr_info("VM_FAULT_SIGBUS: print_bad_pte: %s:%d\n", __func__, __LINE__);
+#endif
 			ret = VM_FAULT_SIGBUS;
 		}
 		goto out;
@@ -4444,6 +4522,11 @@ vm_fault_t do_swap_page(struct vm_fault *vmf)
 		goto out_nomap;
 
 	if (unlikely(!folio_test_uptodate(folio))) {
+#if IS_ENABLED(CONFIG_MTK_VM_DEBUG)
+		if (current->pid == 0x1)
+			pr_info("VM_FAULT_SIGBUS: unlikely(!folio_test_uptodate(folio)): %s:%d\n",
+			__func__, __LINE__);
+#endif
 		ret = VM_FAULT_SIGBUS;
 		goto out_nomap;
 	}
@@ -4785,8 +4868,17 @@ static vm_fault_t do_anonymous_page(struct vm_fault *vmf)
 	pte_t entry;
 
 	/* File mapping without ->vm_ops ? */
+#if IS_ENABLED(CONFIG_MTK_VM_DEBUG)
+	if (vma->vm_flags & VM_SHARED) {
+		if (current->pid == 0x1)
+			pr_info("VM_FAULT_SIGBUS: vma->vm_flags & VM_SHARED: %s:%d\n",
+			__func__, __LINE__);
+		return VM_FAULT_SIGBUS;
+	}
+#else
 	if (vma->vm_flags & VM_SHARED)
 		return VM_FAULT_SIGBUS;
+#endif
 
 	/*
 	 * Use pte_alloc() instead of pte_alloc_map(), so that OOM can
@@ -5468,8 +5560,17 @@ static vm_fault_t do_fault(struct vm_fault *vmf)
 	if (!vma->vm_ops->fault) {
 		vmf->pte = pte_offset_map_lock(vmf->vma->vm_mm, vmf->pmd,
 					       vmf->address, &vmf->ptl);
+#if IS_ENABLED(CONFIG_MTK_VM_DEBUG)
+		if (unlikely(!vmf->pte)) {
+			if (current->pid == 0x1)
+				pr_info("VM_FAULT_SIGBUS: unlikely(!vmf->pte): %s:%d\n",
+				__func__, __LINE__);
+			return VM_FAULT_SIGBUS;
+		}
+#else
 		if (unlikely(!vmf->pte))
 			ret = VM_FAULT_SIGBUS;
+#endif
 		else {
 			/*
 			 * Make sure this is not a temporary clearing of pte
@@ -5478,8 +5579,17 @@ static vm_fault_t do_fault(struct vm_fault *vmf)
 			 * we don't have concurrent modification by hardware
 			 * followed by an update.
 			 */
+#if IS_ENABLED(CONFIG_MTK_VM_DEBUG)
+			if (unlikely(pte_none(ptep_get(vmf->pte)))) {
+				if (current->pid == 0x1)
+					pr_info("VM_FAULT_SIGBUS: pte_none(ptep_get(vmf->pte)): %s:%d\n",
+					__func__, __LINE__);
+				ret = VM_FAULT_SIGBUS;
+			}
+#else
 			if (unlikely(pte_none(ptep_get(vmf->pte))))
 				ret = VM_FAULT_SIGBUS;
+#endif
 			else
 				ret = VM_FAULT_NOPAGE;
 

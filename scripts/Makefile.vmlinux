@@ -43,6 +43,7 @@ cmd_link_vmlinux =							\
 targets += vmlinux
 vmlinux: scripts/link-vmlinux.sh vmlinux.o $(KBUILD_LDS) FORCE
 	+$(call if_changed_dep,link_vmlinux)
+	$(Q)cp $(objtree)/vmlinux $(objtree)/vmlinux_oki
 
 ifdef CONFIG_BUILDTIME_TABLE_SORT
 vmlinux: scripts/sorttable

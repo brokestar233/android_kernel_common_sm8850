@@ -1169,8 +1169,11 @@ int __meminit vmemmap_check_pmd(pmd_t *pmdp, int node,
 				unsigned long addr, unsigned long next)
 {
 	vmemmap_verify((pte_t *)pmdp, node, addr, next);
-
+#ifdef CONFIG_QCOM_VM_MEMORY_FEATURES_NONGKI
+	return pmd_sect(*pmdp);
+#else
 	return pmd_sect(READ_ONCE(*pmdp));
+#endif
 }
 
 int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
